@@ -1,14 +1,19 @@
 package com.lab411.com.sitemarking;
 
+import android.content.ActivityNotFoundException;
 import android.content.Context;
+import android.content.Intent;
 import android.graphics.Bitmap;
 import android.hardware.SensorListener;
 import android.location.Location;
 import android.os.Bundle;
 import android.os.Vibrator;
+import android.speech.RecognizerIntent;
+import android.speech.SpeechRecognizer;
 import android.support.v7.app.AppCompatActivity;
 import android.view.View;
 import android.view.WindowManager;
+import android.widget.Button;
 import android.widget.TextView;
 import android.widget.Toast;
 
@@ -27,6 +32,9 @@ import com.google.android.gms.maps.model.LatLng;
 import com.google.android.gms.maps.model.Marker;
 import com.google.android.gms.maps.model.MarkerOptions;
 
+import java.util.ArrayList;
+import java.util.Locale;
+
 public class MainActivity extends AppCompatActivity implements OnMapReadyCallback, GoogleApiClient.ConnectionCallbacks,
         GoogleApiClient.OnConnectionFailedListener, LocationListener,SensorListener {
     MapView mMapView;
@@ -40,6 +48,8 @@ public class MainActivity extends AppCompatActivity implements OnMapReadyCallbac
     SupportMapFragment mFragment;
     Marker currLocationMarker;
     Bitmap bmp;
+    TextView tv_say;
+    Button btn_tb;
     private ShakeListener mShaker;
     @Override
     public void onSensorChanged(int i, float[] floats) {
@@ -85,10 +95,14 @@ public class MainActivity extends AppCompatActivity implements OnMapReadyCallbac
                 WindowManager.LayoutParams.FLAG_DISMISS_KEYGUARD |
                         WindowManager.LayoutParams.FLAG_SHOW_WHEN_LOCKED |
                         WindowManager.LayoutParams.FLAG_TURN_SCREEN_ON);
+        tv_say= (TextView)findViewById(R.id.tv_say);
+        btn_tb=(Button)findViewById(R.id.btn_tb);
         mFragment = (SupportMapFragment) getSupportFragmentManager().findFragmentById(R.id.mapView);
         mFragment.getMapAsync(this);
         final Vibrator vibe = (Vibrator)getSystemService(Context.VIBRATOR_SERVICE);
-
+        if(SpeechRecognizer.isRecognitionAvailable(this)){
+            Toast.makeText(MainActivity.this," SUPPOST",Toast.LENGTH_SHORT).show();
+        }else     Toast.makeText(MainActivity.this,"NOT SUPPOST1",Toast.LENGTH_SHORT).show();
         mShaker = new ShakeListener(this);
         mShaker.setOnShakeListener(new ShakeListener.OnShakeListener() {
             public void onShake() {
@@ -112,7 +126,54 @@ public class MainActivity extends AppCompatActivity implements OnMapReadyCallbac
 
 
     }
+    public void onButtonClick(View v){
+        if(v.getId()==R.id.btn_say){
+            SpeedchInput();
+        }
+    }
+    public void SpeedchInput(){
+        Intent i = new Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH);
+        i.putExtra(RecognizerIntent.EXTRA_LANGUAGE_MODEL,RecognizerIntent.LANGUAGE_MODEL_FREE_FORM);
+        i.putExtra(RecognizerIntent.EXTRA_LANGUAGE, Locale.getDefault());
+        i.putExtra(RecognizerIntent.EXTRA_PROMPT,"Say somthing");
+        try{
+            startActivityForResult(i,100);
+        }catch (ActivityNotFoundException a){
+            Toast.makeText(MainActivity.this,"NOT SUPPOST",Toast.LENGTH_SHORT).show();
+        }
+    }
+    public void onActivityResult(int requestCode, int resultCode, Intent i){
+        super.onActivityResult(requestCode, resultCode, i);
+        switch (requestCode)
+        {
+            case 100: if ((resultCode== RESULT_OK) && i!=null)
+            {
+                ArrayList<String>result=i.getStringArrayListExtra(RecognizerIntent.EXTRA_RESULTS);
+                tv_say.setText(result.get(0));
+                if(result.get(0).equals("ok")){
+                    if(Marker_latLng!=null) {
+                        marker = new MarkerOptions().position(
+                                new LatLng(Marker_latLng.latitude, Marker_latLng.longitude));
 
+                        // Changing marker icon
+                        //  MapsInitializer.initialize(getActivity().getApplicationContext());
+                        marker.icon(BitmapDescriptorFactory
+                                .defaultMarker(BitmapDescriptorFactory.HUE_RED));
+
+                        // adding marker
+                        mGoogleMap.addMarker(marker);
+                        btn_tb.setText("Thông báo");
+                    }
+
+                } else {
+                    btn_tb.setText("Không đúng");
+                    Toast.makeText(MainActivity.this,"Không đúng",Toast.LENGTH_SHORT).show();
+                }
+            }
+                break;
+            default:break;
+        }
+    }
 
 
     protected synchronized void buildGoogleApiClient() {
